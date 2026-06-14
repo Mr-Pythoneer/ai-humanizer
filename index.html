@@ -276,6 +276,8 @@
     <div class="pill on" data-key="contract" onclick="toggle(this)"><span class="dot"></span>contractions</div>
     <div class="pill on" data-key="ethical" onclick="toggle(this)"><span class="dot"></span>ethical inserts</div>
     <div class="pill on" data-key="burst" onclick="toggle(this)"><span class="dot"></span>burstiness</div>
+    <div class="pill on" data-key="voice" onclick="toggle(this)"><span class="dot"></span>voice inject</div>
+    <div class="pill on" data-key="lists" onclick="toggle(this)"><span class="dot"></span>list breaker</div>
   </div>
 
   <div class="grid-2">
@@ -577,6 +579,76 @@ function run() {
     }
   }
 
+  if (opts.voice) {
+    // Inject informal discourse markers at paragraph/sentence starts (every ~4th eligible sentence)
+    const VOICE_STARTERS = [
+      { re: /^The /, prefix: 'Honestly, the ' },
+      { re: /^(The fact|The issue|The problem|The reality|The truth) /i, prefix: 'Look — the ' },
+      { re: /^(The gap|The difference|The distinction|The challenge) /i, prefix: 'And honestly, the ' },
+    ]
+    const VOICE_FILLERS = [
+      [/\b(in conclusion|to summarize|in summary),?\s*/gi, 'So — '],
+      [/\b(taken together|all things considered),?\s*/gi, 'Stepping back, '],
+      [/\bhowever,\s*/gi, 'But '],
+      [/\bfurthermore,\s*/gi, 'And '],
+      [/\btherefore,\s*/gi, 'So '],
+      [/\bnevertheless,\s*/gi, 'Still, '],
+      [/\bthus,\s*/gi, 'So '],
+      [/\bhence,\s*/gi, 'which means '],
+      [/\bthe ([a-z]+) dimension\b/gi, 'the $1 side of things'],
+      [/\bthe ([a-z]+) implications\b/gi, 'what this means for $1'],
+    ]
+    for (const [re, rep] of VOICE_FILLERS) {
+      text = text.replace(re, (m, ...groups) => {
+        let result = rep
+        groups.forEach((g, i) => { if (g !== undefined) result = result.replace('$' + (i+1), g) })
+        if (m.trim() !== result.trim()) { log.push({ tag:'voice', from: m.trim(), to: result.trim() }); cats.add('voice') }
+        return result
+      })
+    }
+    // Add starter phrases at paragraph beginnings
+    const paraBlocks = text.split(/(\n\n+)/)
+    let vIdx = 0
+    const modBlocks = paraBlocks.map(block => {
+      if (/^\n+$/.test(block)) return block
+      for (const { re, prefix } of VOICE_STARTERS) {
+        if (re.test(block)) {
+          vIdx++
+          if (vIdx % 3 === 0) {
+            const replaced = block.replace(re, prefix)
+            log.push({ tag:'voice', from: block.slice(0,40), to: replaced.slice(0,40) }); cats.add('voice')
+            return replaced
+          }
+        }
+      }
+      return block
+    })
+    text = modBlocks.join('')
+  }
+
+  if (opts.lists) {
+    // Break up triadic parallel lists: "X, Y, and Z" → "X. Y. And Z."
+    // Also: "X, Y, Z — [conclusion]" → split pattern
+    text = text.replace(/([A-Z][^,.\n]{3,40}), ([a-z][^,.\n]{3,40}), ((?:and |or )?[a-z][^,.\n]{3,40})(?= —| \.|,)/g, (m, a, b, c) => {
+      const cClean = c.replace(/^(and |or )/i, '')
+      const result = a + '. ' + capitalize(b) + '. ' + capitalize(cClean)
+      log.push({ tag:'lists', from: m, to: result }); cats.add('lists')
+      return result
+    })
+    // "What X is [the Y]" → "X. That's what Y is."
+    text = text.replace(/\bWhat(?:'s| is) ((?:genuinely |truly |really )?[a-z]+) is (the [a-z]+ [a-z]+)\b/gi, (m, adj, noun) => {
+      const result = capitalize(noun) + ' is what ' + adj + '.'
+      log.push({ tag:'lists', from: m, to: result }); cats.add('lists')
+      return result
+    })
+    // "X is not a Y gap. It's a Z one" nominalized constructions — simplify
+    text = text.replace(/\bthe ([a-z]+) dimension\b/gi, (m, noun) => {
+      const result = 'the ' + noun + ' side of this'
+      log.push({ tag:'lists', from: m, to: result }); cats.add('lists')
+      return result
+    })
+  }
+
   text = text.replace(/  +/g,' ').replace(/ ,/g,',').replace(/ \./g,'.').trim()
   document.getElementById('output').value = text
 
@@ -586,7 +658,7 @@ function run() {
   document.getElementById('s-ai').textContent = log.filter(l => l.tag === 'vocab').length
   document.getElementById('s-cat').textContent = cats.size
 
-  const TAG_LABELS = { vocab:'AI vocab', hedge:'hedging', fp:'first-person', contract:'contraction', burst:'burstiness', ethical:'ethical insert' }
+  const TAG_LABELS = { vocab:'AI vocab', hedge:'hedging', fp:'first-person', contract:'contraction', burst:'burstiness', ethical:'ethical insert', voice:'voice inject', lists:'list breaker' }
   const logEl = document.getElementById('log')
   if (!log.length) { logEl.innerHTML = '<p class="empty-log">No changes — text looks clean already.</p>'; return }
   logEl.innerHTML = log.slice(0,60).map(c => `
