@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Humanizer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f7f7f6;
+    --bg-tertiary: #f1f0ec;
+    --text: #1a1a19;
+    --text-secondary: #6b6b68;
+    --text-tertiary: #a0a09d;
+    --border: rgba(0,0,0,0.12);
+    --border-hover: rgba(0,0,0,0.22);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --purple-light: #EEEDFE;
+    --purple-mid: #CECBF6;
+    --purple-border: #AFA9EC;
+    --purple-dark: #26215C;
+    --teal-light: #E1F5EE;
+    --teal-dark: #085041;
+    --amber-light: #FAEEDA;
+    --amber-dark: #633806;
+    --blue-light: #E6F1FB;
+    --blue-dark: #0C447C;
+    --coral-light: #FAECE7;
+    --coral-dark: #712B13;
+    --green-light: #EAF3DE;
+    --green-dark: #27500A;
+    --red-light: #FCEBEB;
+    --red-mid: #F7C1C1;
+    --red-dark: #501313;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a19;
+      --bg-secondary: #242422;
+      --bg-tertiary: #2c2c2a;
+      --text: #f0efe9;
+      --text-secondary: #a0a09d;
+      --text-tertiary: #6b6b68;
+      --border: rgba(255,255,255,0.1);
+      --border-hover: rgba(255,255,255,0.2);
+      --purple-light: #26215C;
+      --purple-mid: #3C3489;
+      --purple-border: #534AB7;
+      --purple-dark: #CECBF6;
+      --teal-light: #04342C;
+      --teal-dark: #9FE1CB;
+      --amber-light: #412402;
+      --amber-dark: #FAC775;
+      --blue-light: #042C53;
+      --blue-dark: #B5D4F4;
+      --coral-light: #4A1B0C;
+      --coral-dark: #F5C4B3;
+      --green-light: #173404;
+      --green-dark: #C0DD97;
+      --red-light: #501313;
+      --red-mid: #791F1F;
+      --red-dark: #F7C1C1;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-tertiary);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── Lock screen ── */
+  #lock {
+    position: fixed; inset: 0;
+    background: var(--bg-tertiary);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+  }
+  #lock.hidden { display: none; }
+  .lock-card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    width: 320px;
+    text-align: center;
+  }
+  .lock-icon {
+    font-size: 32px;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+  }
+  .lock-card h1 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+  .lock-card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+  }
+  #pw-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 0.5px solid var(--border-hover);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: 15px;
+    text-align: center;
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+    outline: none;
+    font-family: inherit;
+  }
+  #pw-input:focus { border-color: var(--purple-border); }
+  #pw-error {
+    font-size: 12px;
+    color: #E24B4A;
+    min-height: 18px;
+    margin-bottom: 10px;
+  }
+  .unlock-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-hover);
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .unlock-btn:hover { background: var(--bg-tertiary); }
+  .unlock-btn:active { transform: scale(0.98); }
+
+  /* ── Main app ── */
+  #app { display: none; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+  #app.visible { display: block; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2rem; padding-bottom: 1rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+  header h1 { font-size: 22px; font-weight: 500; }
+  header p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .lock-again {
+    background: none; border: 0.5px solid var(--border);
+    border-radius: var(--radius-md); padding: 6px 12px;
+    font-size: 13px; color: var(--text-secondary); cursor: pointer;
+    font-family: inherit;
+  }
+  .lock-again:hover { background: var(--bg-secondary); }
+
+  /* toggles */
+  .toggle-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
+  .pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 5px 10px;
+    border-radius: 100px; border: 0.5px solid var(--border-hover);
+    cursor: pointer; user-select: none;
+    color: var(--text-secondary); background: var(--bg-secondary);
+    transition: all 0.15s;
+  }
+  .pill.on { background: var(--purple-light); border-color: var(--purple-border); color: var(--purple-dark); }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+  .pill.on .dot { opacity: 1; }
+
+  /* text areas */
+  .col-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  textarea {
+    resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.6;
+    color: var(--text); background: var(--bg);
+    border: 0.5px solid var(--border-hover);
+    border-radius: var(--radius-md); padding: 12px; width: 100%; min-height: 220px;
+  }
+  textarea:focus { outline: none; border-color: var(--purple-border); }
+  textarea::placeholder { color: var(--text-tertiary); }
+  textarea[readonly] { background: var(--bg-secondary); }
+
+  /* action row */
+  .action-row { display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem; }
+  .main-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 20px; border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-hover);
+    background: var(--bg-secondary); font-size: 14px;
+    cursor: pointer; color: var(--text); font-family: inherit;
+    white-space: nowrap;
+  }
+  .main-btn:hover { background: var(--bg); }
+  .main-btn:active { transform: scale(0.98); }
+  .sm-btn {
+    padding: 8px 14px; font-size: 13px; border-radius: var(--radius-md);
+    border: 0.5px solid var(--border); background: transparent;
+    cursor: pointer; color: var(--text-secondary); font-family: inherit;
+  }
+  .sm-btn:hover { background: var(--bg-secondary); color: var(--text); }
+
+  /* stats */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1; }
+  .stat { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 10px 12px; }
+  .stat-num { font-size: 20px; font-weight: 500; color: var(--text); }
+  .stat-label { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* change log */
+  .section-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; }
+  .change-log { max-height: 200px; overflow-y: auto; border: 0.5px solid var(--border); border-radius: var(--radius-md); }
+  .change-item {
+    display: flex; gap: 8px; padding: 7px 12px;
+    border-bottom: 0.5px solid var(--border); align-items: flex-start;
+  }
+  .change-item:last-child { border-bottom: none; }
+  .tag {
+    font-size: 11px; padding: 2px 7px; border-radius: 100px;
+    white-space: nowrap; font-weight: 500; flex-shrink: 0; margin-top: 1px;
+  }
+  .tag-vocab { background: var(--purple-light); color: var(--purple-dark); }
+  .tag-hedge { background: var(--teal-light); color: var(--teal-dark); }
+  .tag-fp { background: var(--amber-light); color: var(--amber-dark); }
+  .tag-contract { background: var(--blue-light); color: var(--blue-dark); }
+  .tag-burst { background: var(--coral-light); color: var(--coral-dark); }
+  .tag-ethical { background: var(--red-light); color: var(--red-dark); }
+  .change-text { font-size: 13px; color: var(--text-secondary); flex: 1; line-height: 1.5; }
+  del { color: #E24B4A; text-decoration: line-through; background: var(--red-light); padding: 0 2px; border-radius: 2px; }
+  ins { color: #3B6D11; text-decoration: none; background: var(--green-light); padding: 0 2px; border-radius: 2px; }
+  .empty-log { color: var(--text-tertiary); font-size: 13px; font-style: italic; padding: 12px; }
+
+  footer { text-align: center; margin-top: 3rem; padding-top: 1rem; border-top: 0.5px solid var(--border); font-size: 12px; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+
+<!-- ── Lock screen ── -->
+<div id="lock">
+  <div class="lock-card">
+    <div class="lock-icon"><i class="ti ti-lock"></i></div>
+    <h1>AI Humanizer</h1>
+    <p>Enter the password to continue</p>
+    <input id="pw-input" type="password" placeholder="••••••" autocomplete="off" />
+    <div id="pw-error"></div>
+    <button class="unlock-btn" onclick="unlock()"><i class="ti ti-arrow-right"></i> unlock</button>
+  </div>
+</div>
+
+<!-- ── Main app ── -->
+<div id="app">
+  <header>
+    <div>
+      <h1>AI Humanizer</h1>
+      <p>Remove AI tells — vocabulary, hedging, ethics inserts, low burstiness</p>
+    </div>
+    <button class="lock-again" onclick="lockAgain()"><i class="ti ti-lock"></i> lock</button>
+  </header>
+
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+    <p style="font-size:13px; color:var(--text-secondary);">Active transforms</p>
+    <button class="sm-btn" onclick="toggleAll()">toggle all</button>
+  </div>
+
+  <div class="toggle-row" id="toggles">
+    <div class="pill on" data-key="vocab" onclick="toggle(this)"><span class="dot"></span>AI vocab</div>
+    <div class="pill on" data-key="hedge" onclick="toggle(this)"><span class="dot"></span>hedging phrases</div>
+    <div class="pill on" data-key="fp" onclick="toggle(this)"><span class="dot"></span>first-person</div>
+    <div class="pill on" data-key="contract" onclick="toggle(this)"><span class="dot"></span>contractions</div>
+    <div class="pill on" data-key="ethical" onclick="toggle(this)"><span class="dot"></span>ethical inserts</div>
+    <div class="pill on" data-key="burst" onclick="toggle(this)"><span class="dot"></span>burstiness</div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <p class="col-label">input — paste AI text here</p>
+      <textarea id="input" placeholder="Paste AI-generated text here..."></textarea>
+    </div>
+    <div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <p class="col-label">output</p>
+        <button class="sm-btn" id="copyBtn" onclick="copyOut()"><i class="ti ti-copy"></i> copy</button>
+      </div>
+      <textarea id="output" readonly placeholder="Humanized text appears here..."></textarea>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="main-btn" onclick="run()"><i class="ti ti-refresh"></i> humanize</button>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-num" id="s-changes">—</div><div class="stat-label">changes</div></div>
+      <div class="stat"><div class="stat-num" id="s-words">—</div><div class="stat-label">words</div></div>
+      <div class="stat"><div class="stat-num" id="s-ai">—</div><div class="stat-label">AI vocab hits</div></div>
+      <div class="stat"><div class="stat-num" id="s-cat">—</div><div class="stat-label">categories</div></div>
+    </div>
+  </div>
+
+  <p class="section-label">change log</p>
+  <div class="change-log" id="log"><p class="empty-log">Run humanizer to see what changed.</p></div>
+
+  <footer>AI Humanizer — <a href="https://github.com/Mr-Pythoneer" style="color:inherit">Mr-Pythoneer</a> &nbsp;·&nbsp; Cmd+Enter to run</footer>
+</div>
+
+<script>
+const CORRECT_HASH = '15109'
+
+function simpleHash(s) {
+  let h = 0
+  for (let i = 0; i < s.length; i++) { h = (Math.imul(31, h) + s.charCodeAt(i)) | 0 }
+  return Math.abs(h).toString(16).slice(0, 6)
+}
+
+function unlock() {
+  const val = document.getElementById('pw-input').value
+  if (simpleHash(val) === CORRECT_HASH) {
+    sessionStorage.setItem('hu_auth', '1')
+    document.getElementById('lock').classList.add('hidden')
+    document.getElementById('app').classList.add('visible')
+    document.getElementById('pw-error').textContent = ''
+  } else {
+    document.getElementById('pw-error').textContent = 'Wrong password — try again'
+    document.getElementById('pw-input').value = ''
+    document.getElementById('pw-input').focus()
+  }
+}
+
+function lockAgain() {
+  sessionStorage.removeItem('hu_auth')
+  document.getElementById('lock').classList.remove('hidden')
+  document.getElementById('app').classList.remove('visible')
+}
+
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') unlock() })
+
+if (sessionStorage.getItem('hu_auth') === '1') {
+  document.getElementById('lock').classList.add('hidden')
+  document.getElementById('app').classList.add('visible')
+}
+
+const SYNONYMS = {
+  'delve': ['dig into','explore','get into','examine'],
+  'delves': ['digs into','explores','gets into','examines'],
+  'delved': ['dug into','explored','got into','examined'],
+  'delving': ['digging into','exploring','getting into'],
+  'nuanced': ['subtle','layered','careful','complex'],
+  'multifaceted': ['complex','varied','wide-ranging','many-sided'],
+  'underscore': ['highlight','show','stress','point to'],
+  'underscores': ['highlights','shows','stresses','points to'],
+  'underscored': ['highlighted','showed','stressed'],
+  'underscoring': ['highlighting','showing','stressing'],
+  'encompasses': ['includes','covers','spans','takes in'],
+  'encompass': ['include','cover','span','take in'],
+  'encompassed': ['included','covered','spanned'],
+  'pivotal': ['key','crucial','central','critical','defining'],
+  'realm': ['area','field','world','space'],
+  'realms': ['areas','fields','worlds','spaces'],
+  'vibrant': ['lively','rich','busy','energetic'],
+  'tapestry': ['mix','blend','combination'],
+  'testament': ['proof','sign','evidence','mark'],
+  'leverage': ['use','apply','draw on'],
+  'leverages': ['uses','applies','draws on'],
+  'leveraged': ['used','applied','drew on'],
+  'leveraging': ['using','applying','drawing on'],
+  'navigate': ['handle','deal with','work through','manage'],
+  'navigates': ['handles','deals with','manages'],
+  'navigated': ['handled','dealt with','managed'],
+  'navigating': ['handling','dealing with','managing'],
+  'empower': ['help','allow','enable'],
+  'empowers': ['helps','allows','enables'],
+  'empowered': ['helped','allowed','enabled'],
+  'empowering': ['helping','allowing','enabling'],
+  'foster': ['build','grow','encourage','develop'],
+  'fosters': ['builds','grows','encourages'],
+  'fostered': ['built','grew','encouraged'],
+  'fostering': ['building','growing','encouraging'],
+  'facilitate': ['help','support','enable','ease'],
+  'facilitates': ['helps','supports','enables'],
+  'facilitated': ['helped','supported','enabled'],
+  'utilize': ['use','apply'],
+  'utilizes': ['uses','applies'],
+  'utilized': ['used','applied'],
+  'utilizing': ['using','applying'],
+  'robust': ['strong','solid','effective'],
+  'comprehensive': ['thorough','full','broad','complete'],
+  'innovative': ['new','fresh','original','creative'],
+  'paradigm': ['model','approach','framework'],
+  'holistic': ['whole','complete','overall','broad'],
+  'synergy': ['combination','teamwork','working together'],
+  'pivotally': ['crucially','centrally','critically'],
+  'fundamentally': ['basically','at its core','essentially'],
+  'paramount': ['crucial','essential','top priority'],
+  'imperative': ['essential','critical','a must'],
+  'intricate': ['detailed','complex','involved'],
+}
+
+const HEDGE_PATTERNS = [
+  { re: /It(?:'s| is) (worth noting|important to note|worth mentioning|worth pointing out) that /gi, rep: '' },
+  { re: /One (?:important |key )?(?:caveat|consideration|thing to keep in mind|point) (?:here )?is that /gi, rep: '' },
+  { re: /It(?:'s| is) (?:crucial|essential|important|vital) to (?:acknowledge|note|recognize|remember) that /gi, rep: '' },
+  { re: /(?:It )?(?:should be|must be) (?:noted|said|acknowledged) that /gi, rep: '' },
+  { re: /(?:of course|needless to say),? /gi, rep: '' },
+  { re: /There are,? of course,? /gi, rep: 'There are ' },
+  { re: /,? of course,?/gi, rep: '' },
+]
+
+const HEDGE_SOFTEN = [
+  { re: /\bit seems (?:that |as though |like )/gi, tag:'hedge', rep: '' },
+  { re: /\bit (?:would |could )?seem(?:s)? (?:that |as though |like )/gi, tag:'hedge', rep: '' },
+  { re: /\bone might (?:argue|suggest|say|note|observe|consider|think)\b/gi, tag:'fp', pick: ["I'd argue","you could say","I think","I'd suggest"] },
+  { re: /\bone could (?:argue|suggest|say|note|observe|consider)\b/gi, tag:'fp', pick: ["I'd argue","you could say","I think"] },
+  { re: /\bthe reader (may|might|will|can|should)\b/gi, tag:'fp', pick: ["you $1"] },
+  { re: /\bthe reader(?:'s)\b/gi, tag:'fp', rep: 'your' },
+]
+
+const ETHICAL_PATTERNS = [
+  { re: /(?:It(?:'s| is) (?:also )?(?:crucial|important|essential|vital) to (?:approach|use|consider|ensure|recognize|acknowledge) (?:this|these|such|any) (?:with (?:caution|care|responsibility|sensitivity)|responsibly|ethically|carefully)[^.]*\.)\s*/gi },
+  { re: /(?:As with (?:any|all) (?:powerful |such )?(?:tool|technology|approach|system)[^,]*,? (?:responsible|ethical|careful) (?:use|application|consideration) (?:is|remains) (?:essential|important|crucial|key)[^.]*\.)\s*/gi },
+  { re: /(?:(?:Responsible|Ethical) (?:use|application|implementation) (?:of|is) [^.]*(?:important|essential|crucial|key)[^.]*\.)\s*/gi },
+]
+
+const CONTRACTION_MAP = [
+  [/\bit is\b/g,"it's"],[/\bIt is\b/g,"It's"],[/\bthey are\b/g,"they're"],[/\bThey are\b/g,"They're"],
+  [/\bdo not\b/g,"don't"],[/\bDo not\b/g,"Don't"],[/\bcannot\b/g,"can't"],[/\bCannot\b/g,"Can't"],
+  [/\bwould not\b/g,"wouldn't"],[/\bWould not\b/g,"Wouldn't"],[/\bdoes not\b/g,"doesn't"],[/\bDoes not\b/g,"Doesn't"],
+  [/\bthere is\b/g,"there's"],[/\bThere is\b/g,"There's"],[/\bthat is\b/g,"that's"],[/\bThat is\b/g,"That's"],
+  [/\bwill not\b/g,"won't"],[/\bWill not\b/g,"Won't"],[/\bare not\b/g,"aren't"],[/\bAre not\b/g,"Aren't"],
+  [/\bis not\b/g,"isn't"],[/\bIs not\b/g,"Isn't"],[/\bwas not\b/g,"wasn't"],[/\bWas not\b/g,"Wasn't"],
+  [/\bwere not\b/g,"weren't"],[/\bWere not\b/g,"Weren't"],[/\bI am\b/g,"I'm"],
+  [/\bwe are\b/g,"we're"],[/\bWe are\b/g,"We're"],[/\byou are\b/g,"you're"],[/\bYou are\b/g,"You're"],
+  [/\bhave not\b/g,"haven't"],[/\bHave not\b/g,"Haven't"],[/\bhas not\b/g,"hasn't"],[/\bHas not\b/g,"Hasn't"],
+  [/\bhad not\b/g,"hadn't"],[/\bHad not\b/g,"Hadn't"],[/\bshould not\b/g,"shouldn't"],[/\bShould not\b/g,"Shouldn't"],
+  [/\bcould not\b/g,"couldn't"],[/\bCould not\b/g,"Couldn't"],[/\bthey have\b/g,"they've"],
+  [/\bwe have\b/g,"we've"],[/\bwe will\b/g,"we'll"],[/\bthey will\b/g,"they'll"],
+  [/\byou will\b/g,"you'll"],[/\bI will\b/g,"I'll"],
+]
+
+const opts = {}
+document.querySelectorAll('.pill').forEach(p => { opts[p.dataset.key] = true })
+
+function toggle(el) {
+  opts[el.dataset.key] = !opts[el.dataset.key]
+  el.classList.toggle('on', opts[el.dataset.key])
+}
+let allOn = true
+function toggleAll() {
+  allOn = !allOn
+  document.querySelectorAll('.pill').forEach(p => {
+    opts[p.dataset.key] = allOn
+    p.classList.toggle('on', allOn)
+  })
+}
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
+function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : s }
+function matchCase(original, replacement) {
+  if (original[0] === original[0].toUpperCase() && original[0] !== original[0].toLowerCase()) return capitalize(replacement)
+  return replacement
+}
+
+function run() {
+  const input = document.getElementById('input').value.trim()
+  if (!input) return
+  let text = input
+  const log = []
+  const cats = new Set()
+
+  if (opts.ethical) {
+    for (const p of ETHICAL_PATTERNS) {
+      text = text.replace(p.re, m => { log.push({ tag:'ethical', from: m.trim(), to: '(removed)' }); cats.add('ethical'); return ' ' })
+    }
+  }
+  if (opts.hedge) {
+    for (const p of HEDGE_PATTERNS) {
+      text = text.replace(p.re, m => {
+        if (m.trim() !== (p.rep||'').trim()) { log.push({ tag:'hedge', from: m, to: p.rep || '(removed)' }); cats.add('hedge') }
+        return p.rep
+      })
+    }
+    for (const p of HEDGE_SOFTEN) {
+      if (!p.pick) {
+        text = text.replace(p.re, m => {
+          const result = matchCase(m, p.rep)
+          if (m.trim() !== result.trim()) { log.push({ tag: p.tag, from: m, to: result || '(removed)' }); cats.add(p.tag) }
+          return result
+        })
+      }
+    }
+  }
+  if (opts.fp) {
+    for (const p of HEDGE_SOFTEN) {
+      if (p.pick) {
+        text = text.replace(p.re, (m, ...args) => {
+          let rep = pick(p.pick).replace(/\$1/, args[0] || '')
+          const result = matchCase(m, rep)
+          if (m.trim() !== result.trim()) { log.push({ tag: p.tag, from: m, to: result }); cats.add(p.tag) }
+          return result
+        })
+      }
+    }
+  }
+  if (opts.vocab) {
+    for (const [word, synonyms] of Object.entries(SYNONYMS)) {
+      const re = new RegExp('\\b' + word + '\\b', 'gi')
+      text = text.replace(re, m => {
+        const result = matchCase(m, pick(synonyms))
+        log.push({ tag:'vocab', from: m, to: result }); cats.add('vocab')
+        return result
+      })
+    }
+  }
+  if (opts.contract) {
+    for (const [re, rep] of CONTRACTION_MAP) {
+      text = text.replace(re, m => { log.push({ tag:'contract', from: m, to: rep }); cats.add('contract'); return rep })
+    }
+  }
+  if (opts.burst) {
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || []
+    const long = sentences.filter(s => s.trim().split(/\s+/).length > 35)
+    if (long.length > 2) {
+      long.slice(0, 2).forEach(s => {
+        const connectors = [' which ', ' and this ', ' and that ', ' while ']
+        for (const conn of connectors) {
+          const idx = s.indexOf(conn)
+          if (idx > 20 && idx < s.length - 20) {
+            const newS = s.slice(0, idx).trimEnd() + '. ' + capitalize(s.slice(idx + conn.length).trimStart())
+            text = text.replace(s, newS)
+            log.push({ tag:'burst', from: s.trim().slice(0,55)+'...', to: 'split sentence' }); cats.add('burst'); break
+          }
+        }
+      })
+    }
+    const allSentences = text.match(/[^.!?]+[.!?]+/g) || []
+    const short = allSentences.filter(s => s.trim().split(/\s+/).length < 6)
+    if (short.length >= 3) {
+      const pair = short.slice(0, 2)
+      const joined = pair[0] + ' ' + pair[1]
+      if (text.includes(joined)) {
+        const merged = pair[0].trimEnd().replace(/[.!?]$/, '') + ', and ' + pair[1].trim()[0].toLowerCase() + pair[1].trim().slice(1)
+        text = text.replace(joined, merged)
+        log.push({ tag:'burst', from: pair[0].trim()+' / '+pair[1].trim(), to: 'merged short sentences' }); cats.add('burst')
+      }
+    }
+  }
+
+  text = text.replace(/  +/g,' ').replace(/ ,/g,',').replace(/ \./g,'.').trim()
+  document.getElementById('output').value = text
+
+  const wordCount = input.split(/\s+/).filter(Boolean).length
+  document.getElementById('s-changes').textContent = log.length
+  document.getElementById('s-words').textContent = wordCount
+  document.getElementById('s-ai').textContent = log.filter(l => l.tag === 'vocab').length
+  document.getElementById('s-cat').textContent = cats.size
+
+  const TAG_LABELS = { vocab:'AI vocab', hedge:'hedging', fp:'first-person', contract:'contraction', burst:'burstiness', ethical:'ethical insert' }
+  const logEl = document.getElementById('log')
+  if (!log.length) { logEl.innerHTML = '<p class="empty-log">No changes — text looks clean already.</p>'; return }
+  logEl.innerHTML = log.slice(0,60).map(c => `
+    <div class="change-item">
+      <span class="tag tag-${c.tag}">${TAG_LABELS[c.tag]}</span>
+      <span class="change-text"><del>${c.from.trim().slice(0,50)}</del> → <ins>${c.to.trim().slice(0,60)}</ins></span>
+    </div>`).join('') + (log.length > 60 ? `<p class="empty-log">...and ${log.length-60} more</p>` : '')
+}
+
+function copyOut() {
+  const out = document.getElementById('output').value
+  if (!out) return
+  navigator.clipboard.writeText(out).then(() => {
+    const btn = document.getElementById('copyBtn')
+    btn.textContent = 'copied!'
+    setTimeout(() => { btn.innerHTML = '<i class="ti ti-copy"></i> copy' }, 1500)
+  })
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') run()
+})
+</script>
+</body>
+</html>
