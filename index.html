@@ -345,18 +345,18 @@ if (sessionStorage.getItem('hu_auth') === '1') {
 }
 
 const SYNONYMS = {
-  'delve': ['dig into','explore','get into','examine'],
-  'delves': ['digs into','explores','gets into','examines'],
-  'delved': ['dug into','explored','got into','examined'],
-  'delving': ['digging into','exploring','getting into'],
-  'nuanced': ['subtle','layered','careful','complex'],
-  'multifaceted': ['complex','varied','wide-ranging','many-sided'],
-  'underscore': ['highlight','show','stress','point to'],
-  'underscores': ['highlights','shows','stresses','points to'],
-  'underscored': ['highlighted','showed','stressed'],
-  'underscoring': ['highlighting','showing','stressing'],
-  'encompasses': ['includes','covers','spans','takes in'],
-  'encompass': ['include','cover','span','take in'],
+  'delve': ['get into','dig into','unpack','interrogate'],
+  'delves': ['gets into','digs into','unpacks'],
+  'delved': ['got into','dug into','unpacked'],
+  'delving': ['getting into','digging into','unpacking'],
+  'nuanced': ['thorny','layered','tricky','careful'],
+  'multifaceted': ['knotty','many-sided','genuinely complex','varied'],
+  'underscore': ['drive home','make clear','hammer','show'],
+  'underscores': ['drives home','makes clear','hammers','shows'],
+  'underscored': ['drove home','made clear','hammered'],
+  'underscoring': ['driving home','making clear','hammering'],
+  'encompasses': ['takes in','cuts across','covers','spans'],
+  'encompass': ['take in','cut across','cover','span'],
   'encompassed': ['included','covered','spanned'],
   'pivotal': ['key','crucial','central','critical','defining'],
   'realm': ['area','field','world','space'],
@@ -521,30 +521,58 @@ function run() {
     }
   }
   if (opts.burst) {
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || []
-    const long = sentences.filter(s => s.trim().split(/\s+/).length > 35)
-    if (long.length > 2) {
-      long.slice(0, 2).forEach(s => {
-        const connectors = [' which ', ' and this ', ' and that ', ' while ']
-        for (const conn of connectors) {
-          const idx = s.indexOf(conn)
-          if (idx > 20 && idx < s.length - 20) {
-            const newS = s.slice(0, idx).trimEnd() + '. ' + capitalize(s.slice(idx + conn.length).trimStart())
-            text = text.replace(s, newS)
-            log.push({ tag:'burst', from: s.trim().slice(0,55)+'...', to: 'split sentence' }); cats.add('burst'); break
+    // Em-dash: convert ", which [verb]..." → " — [verb]..."
+    text = text.replace(/, which ((?:is|are|was|were|has|have|had|can|could|will|would|do|does|did|makes?|shows?|means?|gives?|allows?|creates?|provides?|requires?|involves?)[^,.\n]{0,80})/gi, (m, rest) => {
+      log.push({ tag:'burst', from: m, to: ' — ' + rest }); cats.add('burst')
+      return ' — ' + rest
+    })
+
+    // Conjunction starters: prepend "And" / "But" to every ~3rd eligible sentence
+    const conjStarters = ['And ', 'But ', 'And yet ']
+    let conjHits = 0
+    const paras = text.split(/(\n+)/)
+    const modParas = paras.map(chunk => {
+      if (/^\n+$/.test(chunk)) return chunk
+      const sents = chunk.match(/[^.!?]+[.!?]+\s*/g) || [chunk]
+      return sents.map((s, i) => {
+        if (i === 0) return s
+        const trimmed = s.trimStart()
+        if (/^(The |This |It |That |These |Those |There )/i.test(trimmed)) {
+          conjHits++
+          if (conjHits % 3 === 0) {
+            const conj = conjStarters[Math.floor(conjHits / 3 - 1) % conjStarters.length]
+            const result = conj + trimmed[0].toLowerCase() + trimmed.slice(1)
+            log.push({ tag:'burst', from: trimmed.slice(0,40), to: result.slice(0,40) }); cats.add('burst')
+            return s.replace(trimmed, result)
           }
         }
-      })
-    }
-    const allSentences = text.match(/[^.!?]+[.!?]+/g) || []
-    const short = allSentences.filter(s => s.trim().split(/\s+/).length < 6)
-    if (short.length >= 3) {
-      const pair = short.slice(0, 2)
-      const joined = pair[0] + ' ' + pair[1]
-      if (text.includes(joined)) {
-        const merged = pair[0].trimEnd().replace(/[.!?]$/, '') + ', and ' + pair[1].trim()[0].toLowerCase() + pair[1].trim().slice(1)
-        text = text.replace(joined, merged)
-        log.push({ tag:'burst', from: pair[0].trim()+' / '+pair[1].trim(), to: 'merged short sentences' }); cats.add('burst')
+        return s
+      }).join('')
+    })
+    text = modParas.join('')
+
+    // Aggressive splitting: break sentences > 22 words at natural connectors
+    const splitConnectors = [' which ', ' and this ', ' and that ', ' while also ', ' because of this ', ' although ', ', however,', ', therefore ']
+    let splitCount = 0
+    let safety = 0
+    let didSplit = true
+    while (didSplit && splitCount < 4 && safety++ < 20) {
+      didSplit = false
+      const chunks = text.match(/[^.!?]+[.!?]+(?:\s|$)/g) || []
+      for (const s of chunks) {
+        if (s.trim().split(/\s+/).length <= 22) continue
+        for (const conn of splitConnectors) {
+          const idx = s.indexOf(conn)
+          if (idx > 15 && idx < s.length - 15) {
+            const head = s.slice(0, idx).trimEnd()
+            const tail = capitalize(s.slice(idx + conn.length).trimStart())
+            const newS = head + '. ' + tail
+            text = text.replace(s, newS)
+            log.push({ tag:'burst', from: s.trim().slice(0,55)+'...', to: 'split into two sentences' }); cats.add('burst')
+            splitCount++; didSplit = true; break
+          }
+        }
+        if (didSplit) break
       }
     }
   }
