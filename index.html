@@ -216,6 +216,21 @@
 
   /* change log */
   .section-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; }
+  .bookmarklet-bar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    margin-top: 14px; padding: 10px 14px;
+    background: var(--bg-secondary); border: 0.5px solid var(--border);
+    border-radius: var(--radius-md); font-size: 12px;
+  }
+  .bookmarklet-label { font-weight: 600; color: var(--text-secondary); display:flex; align-items:center; gap:5px; }
+  .bookmarklet-hint { color: var(--text-tertiary); }
+  .bookmarklet-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    background: #1a73e8; color: #fff; text-decoration: none; cursor: grab;
+    border: none; user-select: none; white-space: nowrap;
+  }
+  .bookmarklet-pill:hover { background: #1557b0; }
   .change-log { max-height: 200px; overflow-y: auto; border: 0.5px solid var(--border); border-radius: var(--radius-md); }
   .change-item {
     display: flex; gap: 8px; padding: 7px 12px;
@@ -288,7 +303,10 @@
     <div>
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
         <p class="col-label">output</p>
-        <button class="sm-btn" id="copyBtn" onclick="copyOut()"><i class="ti ti-copy"></i> copy</button>
+        <div style="display:flex;gap:6px;">
+          <button class="sm-btn" id="copyBtn" onclick="copyOut()"><i class="ti ti-copy"></i> copy</button>
+          <button class="sm-btn" id="docsBtn" onclick="sendToGoogleDocs()" title="Open in Google Docs (install bookmarklet first)"><i class="ti ti-brand-google-drive"></i> Google Docs</button>
+        </div>
       </div>
       <textarea id="output" readonly placeholder="Humanized text appears here..."></textarea>
     </div>
@@ -306,6 +324,13 @@
 
   <p class="section-label">change log</p>
   <div class="change-log" id="log"><p class="empty-log">Run humanizer to see what changed.</p></div>
+
+  <div class="bookmarklet-bar">
+    <span class="bookmarklet-label"><i class="ti ti-bookmark"></i> Auto-type into Google Docs</span>
+    <span class="bookmarklet-hint">1. Drag this button to your bookmarks bar&nbsp;→&nbsp;</span>
+    <a class="bookmarklet-pill" href="javascript:(function(){var t=window.name;if(!t)return alert('No text — click “Google Docs” in the humanizer first.');var e=document.querySelector('.kix-appview-editor [contenteditable=true],.docs-texteventtarget-iframe');if(e){e=document.querySelector('[contenteditable=true]');}e=document.querySelector('[contenteditable=true]');if(!e)return alert('Click inside the Google Doc to place your cursor, then click this bookmarklet.');e.focus();document.execCommand('insertText',false,t);})();" onclick="return false;" draggable="true">📄 Humanizer → Docs</a>
+    <span class="bookmarklet-hint">&nbsp;→&nbsp;2. Humanize text&nbsp;→&nbsp;3. Click <b>Google Docs</b>&nbsp;→&nbsp;4. Click the bookmark on the Doc</span>
+  </div>
 
   <footer>AI Humanizer — <a href="https://github.com/Mr-Pythoneer" style="color:inherit">Mr-Pythoneer</a> &nbsp;·&nbsp; Cmd+Enter to run</footer>
 </div>
@@ -666,6 +691,17 @@ function run() {
       <span class="tag tag-${c.tag}">${TAG_LABELS[c.tag]}</span>
       <span class="change-text"><del>${c.from.trim().slice(0,50)}</del> → <ins>${c.to.trim().slice(0,60)}</ins></span>
     </div>`).join('') + (log.length > 60 ? `<p class="empty-log">...and ${log.length-60} more</p>` : '')
+}
+
+function sendToGoogleDocs() {
+  const text = document.getElementById('output').value.trim()
+  if (!text) { alert('Humanize some text first.'); return }
+  const w = window.open('about:blank', '_blank')
+  w.name = text
+  w.location.href = 'https://docs.new'
+  const btn = document.getElementById('docsBtn')
+  btn.innerHTML = '<i class="ti ti-check"></i> opening...'
+  setTimeout(() => { btn.innerHTML = '<i class="ti ti-brand-google-drive"></i> Google Docs' }, 2500)
 }
 
 function copyOut() {
