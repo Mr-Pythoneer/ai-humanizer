@@ -247,10 +247,19 @@
   .tag-contract { background: var(--blue-light); color: var(--blue-dark); }
   .tag-burst { background: var(--coral-light); color: var(--coral-dark); }
   .tag-ethical { background: var(--red-light); color: var(--red-dark); }
+  .tag-trans { background: var(--green-light); color: var(--green-dark); }
   .change-text { font-size: 13px; color: var(--text-secondary); flex: 1; line-height: 1.5; }
   del { color: #E24B4A; text-decoration: line-through; background: var(--red-light); padding: 0 2px; border-radius: 2px; }
   ins { color: #3B6D11; text-decoration: none; background: var(--green-light); padding: 0 2px; border-radius: 2px; }
   .empty-log { color: var(--text-tertiary); font-size: 13px; font-style: italic; padding: 12px; }
+
+  .checklist { margin-top: 1.5rem; border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; background: var(--bg-secondary); }
+  .checklist h2 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .checklist p.sub { font-size: 12px; color: var(--text-tertiary); margin-bottom: 10px; }
+  .checklist ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .checklist li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .checklist li i { margin-top: 2px; color: var(--text-tertiary); flex-shrink: 0; }
+  .checklist b { color: var(--text); }
 
   footer { text-align: center; margin-top: 3rem; padding-top: 1rem; border-top: 0.5px solid var(--border); font-size: 12px; color: var(--text-tertiary); }
 </style>
@@ -274,7 +283,7 @@
   <header>
     <div>
       <h1>AI Humanizer</h1>
-      <p>Remove AI tells — vocabulary, hedging, ethics inserts, low burstiness</p>
+      <p>Remove AI tells — vocabulary, transitions, hedging, ethics inserts, low burstiness</p>
     </div>
     <button class="lock-again" onclick="lockAgain()"><i class="ti ti-lock"></i> lock</button>
   </header>
@@ -286,6 +295,7 @@
 
   <div class="toggle-row" id="toggles">
     <div class="pill on" data-key="vocab" onclick="toggle(this)"><span class="dot"></span>AI vocab</div>
+    <div class="pill on" data-key="trans" onclick="toggle(this)"><span class="dot"></span>transition words</div>
     <div class="pill on" data-key="hedge" onclick="toggle(this)"><span class="dot"></span>hedging phrases</div>
     <div class="pill on" data-key="fp" onclick="toggle(this)"><span class="dot"></span>first-person</div>
     <div class="pill on" data-key="contract" onclick="toggle(this)"><span class="dot"></span>contractions</div>
@@ -330,6 +340,16 @@
     <span class="bookmarklet-hint">1. Drag this button to your bookmarks bar&nbsp;→&nbsp;</span>
     <a class="bookmarklet-pill" href="javascript:(function(){var t=window.name;if(!t)return alert('No text — click “Google Docs” in the humanizer first.');var e=document.querySelector('.kix-appview-editor [contenteditable=true],.docs-texteventtarget-iframe');if(e){e=document.querySelector('[contenteditable=true]');}e=document.querySelector('[contenteditable=true]');if(!e)return alert('Click inside the Google Doc to place your cursor, then click this bookmarklet.');e.focus();document.execCommand('insertText',false,t);})();" onclick="return false;" draggable="true">📄 Humanizer → Docs</a>
     <span class="bookmarklet-hint">&nbsp;→&nbsp;2. Humanize text&nbsp;→&nbsp;3. Click <b>Google Docs</b>&nbsp;→&nbsp;4. Click the bookmark on the Doc</span>
+  </div>
+
+  <div class="checklist">
+    <h2><i class="ti ti-checklist"></i> Things this tool can't do for you</h2>
+    <p class="sub">Automated rewriting only gets you so far — these matter just as much and require a human.</p>
+    <ul>
+      <li><i class="ti ti-eye"></i><span><b>Add concrete, sensory detail.</b> Swap vague abstractions for specific brand names, sounds, smells, and small real moments — a machine can't guess your specific memories.</span></li>
+      <li><i class="ti ti-wand-off"></i><span><b>Don't run this output through a grammar tool's "rewrite" button.</b> Spell-check is fine; "Rewrite for Clarity" / "Make Professional" will iron your voice back into low-perplexity machine text.</span></li>
+      <li><i class="ti ti-history"></i><span><b>Write the real draft in Google Docs or Word with version history on.</b> A timestamped edit log — typos, deletions, pauses — is your best proof a human wrote it if anyone ever asks.</span></li>
+    </ul>
   </div>
 
   <footer>AI Humanizer — <a href="https://github.com/Mr-Pythoneer" style="color:inherit">Mr-Pythoneer</a> &nbsp;·&nbsp; Cmd+Enter to run</footer>
@@ -427,6 +447,32 @@ const SYNONYMS = {
   'intricate': ['detailed','complex','involved'],
 }
 
+const TRANSITION_PATTERNS = [
+  // hard deletes — these add nothing, just strip the connective tissue
+  { re: /\b(Furthermore|Moreover|Additionally|In addition),?\s+/g, pick: ['', 'Also, ', 'Plus, '] },
+  { re: /\bfurthermore,?\s+/gi, pick: ['', 'also '] },
+  { re: /\b(Consequently|Therefore|Thus|Hence),?\s+/g, pick: ['So ', 'That meant ', ''] },
+  { re: /\b(consequently|therefore|thus|hence),?\s+/gi, pick: ['so ', 'that meant ', ''] },
+  { re: /\bIn conclusion,?\s+/g, pick: ['So, ', 'In the end, ', ''] },
+  { re: /\bin conclusion,?\s+/gi, pick: ['so, ', 'in the end, ', ''] },
+  { re: /\b(Crucially|Notably|Importantly),?\s+/g, pick: ['', 'Here’s the thing — '] },
+  { re: /\b(crucially|notably|importantly),?\s+/gi, pick: ['', 'here’s the thing — '] },
+  { re: /\bIt is important to note that\s+/gi, pick: ['', 'Worth saying: ', 'But here’s the thing — '] },
+  { re: /\bIt's important to note that\s+/gi, pick: ['', 'Worth saying: '] },
+  { re: /\bis a testament to\b/gi, pick: ['shows', 'proves', 'is proof of'] },
+  { re: /\bwas a testament to\b/gi, pick: ['showed', 'proved', 'was proof of'] },
+  { re: /\b(Nonetheless|Nevertheless),?\s+/g, pick: ['Still, ', 'Even so, '] },
+  { re: /\b(nonetheless|nevertheless),?\s+/gi, pick: ['still, ', 'even so, '] },
+  { re: /\bNotwithstanding\s+/g, pick: ['Even with ', 'Despite '] },
+  { re: /\bIn today's (?:fast-paced |rapidly evolving |modern |digital )?world,?\s+/gi, pick: ['Right now, ', 'These days, ', ''] },
+  { re: /\bIn today's society,?\s+/gi, pick: ['These days, ', ''] },
+  { re: /\b(Overall|All in all|In summary|To summarize),?\s+/g, pick: ['So, ', 'Bottom line: ', ''] },
+  { re: /\b(overall|all in all|in summary|to summarize),?\s+/gi, pick: ['so, ', 'bottom line: ', ''] },
+  { re: /\bthat said,?\s+/gi, pick: ['but ', 'still, '] },
+  { re: /\bundoubtedly,?\s+/gi, pick: ['no doubt ', ''] },
+  { re: /\bUndoubtedly,?\s+/g, pick: ['No doubt ', ''] },
+]
+
 const HEDGE_PATTERNS = [
   { re: /It(?:'s| is) (worth noting|important to note|worth mentioning|worth pointing out) that /gi, rep: '' },
   { re: /One (?:important |key )?(?:caveat|consideration|thing to keep in mind|point) (?:here )?is that /gi, rep: '' },
@@ -498,6 +544,15 @@ function run() {
   const log = []
   const cats = new Set()
 
+  if (opts.trans) {
+    for (const p of TRANSITION_PATTERNS) {
+      text = text.replace(p.re, m => {
+        const result = matchCase(m, pick(p.pick))
+        if (m.trim() !== result.trim()) { log.push({ tag:'trans', from: m, to: result || '(removed)' }); cats.add('trans') }
+        return result
+      })
+    }
+  }
   if (opts.ethical) {
     for (const p of ETHICAL_PATTERNS) {
       text = text.replace(p.re, m => { log.push({ tag:'ethical', from: m.trim(), to: '(removed)' }); cats.add('ethical'); return ' ' })
@@ -602,6 +657,28 @@ function run() {
         if (didSplit) break
       }
     }
+
+    // Break paragraph symmetry: find the longest paragraph and peel its last
+    // sentence off into its own tiny transitional paragraph.
+    const blocks = text.split(/\n\n+/)
+    if (blocks.length >= 2) {
+      let longestIdx = -1, longestLen = 0
+      blocks.forEach((b, i) => {
+        const wc = b.trim().split(/\s+/).length
+        if (wc > longestLen && wc > 40) { longestLen = wc; longestIdx = i }
+      })
+      if (longestIdx >= 0) {
+        const sents = blocks[longestIdx].match(/[^.!?]+[.!?]+\s*/g)
+        if (sents && sents.length >= 3) {
+          const last = sents.pop().trim()
+          blocks[longestIdx] = sents.join('').trim()
+          blocks.splice(longestIdx + 1, 0, last)
+          text = blocks.join('\n\n')
+          log.push({ tag:'burst', from: '(longest paragraph)', to: 'peeled off a short transitional paragraph: "' + last.slice(0,50) + '..."' })
+          cats.add('burst')
+        }
+      }
+    }
   }
 
   if (opts.voice) {
@@ -683,7 +760,7 @@ function run() {
   document.getElementById('s-ai').textContent = log.filter(l => l.tag === 'vocab').length
   document.getElementById('s-cat').textContent = cats.size
 
-  const TAG_LABELS = { vocab:'AI vocab', hedge:'hedging', fp:'first-person', contract:'contraction', burst:'burstiness', ethical:'ethical insert', voice:'voice inject', lists:'list breaker' }
+  const TAG_LABELS = { vocab:'AI vocab', trans:'transition word', hedge:'hedging', fp:'first-person', contract:'contraction', burst:'burstiness', ethical:'ethical insert', voice:'voice inject', lists:'list breaker' }
   const logEl = document.getElementById('log')
   if (!log.length) { logEl.innerHTML = '<p class="empty-log">No changes — text looks clean already.</p>'; return }
   logEl.innerHTML = log.slice(0,60).map(c => `
