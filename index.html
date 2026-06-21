@@ -495,8 +495,15 @@ function run() {
       for (const s of chunks) {
         if (s.trim().split(/\s+/).length <= 22) continue
         for (const conn of splitConnectors) {
-          const idx = s.indexOf(conn)
-          if (idx > 15 && idx < s.length - 15) {
+          let searchFrom = 0, idx = -1
+          while (true) {
+            const found = s.indexOf(conn, searchFrom)
+            if (found === -1) break
+            const headCandidate = s.slice(0, found).trimEnd()
+            if (found > 15 && found < s.length - 15 && !/\b(and|but|or|nor|so|yet)$/i.test(headCandidate)) { idx = found; break }
+            searchFrom = found + conn.length
+          }
+          if (idx !== -1) {
             const head = s.slice(0, idx).trimEnd()
             const tail = capitalize(s.slice(idx + conn.length).trimStart())
             const newS = head + '. ' + tail
@@ -603,6 +610,8 @@ function run() {
   }
 
   text = text.replace(/  +/g,' ').replace(/ ,/g,',').replace(/ \./g,'.').trim()
+  // Re-capitalize sentence starts left lowercase by a deleted lead-in (e.g. "Furthermore, the team" -> "the team")
+  text = text.replace(/(^|[.!?]\s+|\n\s*)([a-z])/g, (m, pre, letter) => pre + letter.toUpperCase())
   document.getElementById('output').value = text
 
   const wordCount = input.split(/\s+/).filter(Boolean).length
